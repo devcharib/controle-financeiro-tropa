@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Financeiro - Controle de Caixa</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .card-title {
+            font-size: 0.9em;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .card-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .card-positive {
+            color: #10b981;
+        }
+
+        .card-negative {
+            color: #ef4444;
+        }
+
+        .card-neutral {
+            color: #667eea;
+        }
+
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .chart-title {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .serasa-section {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .serasa-title {
+            font-size: 1.5em;
+            color: #ef4444;
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .serasa-icon {
+            font-size: 1.5em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f3f4f6;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .empty-state-icon {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .card-value {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Dashboard Financeiro</h1>
+            <p class="subtitle">Controle de Caixa do Grupo</p>
+        </header>
+
+        <div id="loading" class="loading">
+            Carregando dados...
+        </div>
+
+        <div id="content" style="display: none;">
+            <!-- Cards de Resumo -->
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-title">Total de Entradas</div>
+                    <div class="card-value card-positive" id="totalEntradas">R$ 0,00</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Total de Saídas</div>
+                    <div class="card-value card-negative" id="totalSaidas">R$ 0,00</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Saldo Atual</div>
+                    <div class="card-value card-neutral" id="saldoAtual">R$ 0,00</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Taxa de Adimplência</div>
+                    <div class="card-value card-neutral" id="taxaAdimplencia">0%</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Melhor Ano</div>
+                    <div class="card-value card-positive" id="melhorAno">-</div>
+                    <div style="font-size: 0.9em; color: #666; margin-top: 5px;" id="melhorAnoValor"></div>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="charts-section">
+                <div class="chart-container">
+                    <h3 class="chart-title">Evolução Anual</h3>
+                    <canvas id="anosChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3 class="chart-title">Entradas por Tipo</h3>
+                    <canvas id="entradasChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3 class="chart-title">Distribuição Financeira</h3>
+                    <canvas id="distribuicaoChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3 class="chart-title">Saídas por Categoria</h3>
+                    <canvas id="saidasChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3 class="chart-title">Entradas por Mês</h3>
+                    <canvas id="entradasMesChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Serasa do Grupo -->
+            <div class="serasa-section">
+                <h2 class="serasa-title">
+                    <span class="serasa-icon">⚠️</span>
+                    Serasa do Grupo
+                </h2>
+                <div id="serasaContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SHEET_ID = '1TEKYkAkfuXXW11kaDPi03RXI1119Jh762VQ3Nlv2S2g';
+        const BASE_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?`;
+
+        async function fetchSheetData(sheetName, query = '') {
+            const url = `${BASE_URL}sheet=${encodeURIComponent(sheetName)}&tq=${encodeURIComponent(query)}`;
+            try {
+                const response = await fetch(url);
+                const text = await response.text();
+                const json = JSON.parse(text.substring(47).slice(0, -2));
+                return json.table;
+            } catch (error) {
+                console.error('Erro ao buscar dados:', error);
+                throw error;
+            }
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value || 0);
+        }
+
+        async function loadDashboard() {
+            try {
+                // Buscar dados do Dashboard
+                const dashboardData = await fetchSheetData('Dashboard');
+                const rows = dashboardData.rows;
+                
+                // Debug
+                console.log('Total de linhas:', rows.length);
+                console.log('Dados completos:', rows);
+                
+                // Função para encontrar valor por texto na coluna A
+                function findValueByLabel(label, isPercentage = false) {
+                    const row = rows.find(r => r.c[0]?.v && r.c[0].v.toString().includes(label));
+                    if (row && row.c[1]) {
+                        // Para porcentagens, tentar pegar o valor formatado primeiro
+                        if (isPercentage) {
+                            return row.c[1].f || row.c[1].v || '0%';
+                        }
+                        // Para números, tentar converter
+                        const value = row.c[1].v;
+                        return value !== null && value !== undefined ? parseFloat(value) : 0;
+                    }
+                    return isPercentage ? '0%' : 0;
+                }
+                
+                // Buscar valores pelos labels
+                const totalEntradas = findValueByLabel('TOTAL DE ENTRADAS');
+                const totalSaidas = findValueByLabel('TOTAL DE SAÍDAS');
+                const saldoAtual = findValueByLabel('SALDO ATUAL');
+                const taxaAdimplencia = findValueByLabel('TAXA DE ADIMPLÊNCIA', true); // true = é porcentagem
+                const membrosMensais = findValueByLabel('MEMBROS MENSAIS');
+                const empresas = findValueByLabel('EMPRESAS');
+                const avulsos = findValueByLabel('AVULSOS');
+                
+                console.log('Valores encontrados:', {
+                    totalEntradas, totalSaidas, saldoAtual, taxaAdimplencia,
+                    membrosMensais, empresas, avulsos
+                });
+                
+                document.getElementById('totalEntradas').textContent = formatCurrency(totalEntradas);
+                document.getElementById('totalSaidas').textContent = formatCurrency(totalSaidas);
+                document.getElementById('saldoAtual').textContent = formatCurrency(saldoAtual);
+                
+                // Para a taxa de adimplência
+                if (typeof taxaAdimplencia === 'string' && taxaAdimplencia.includes('%')) {
+                    document.getElementById('taxaAdimplencia').textContent = taxaAdimplencia;
+                } else if (typeof taxaAdimplencia === 'number') {
+                    document.getElementById('taxaAdimplencia').textContent = `${Math.round(taxaAdimplencia * 100)}%`;
+                } else {
+                    document.getElementById('taxaAdimplencia').textContent = '0%';
+                }
+
+                // Gráfico de Entradas por Tipo
+                const ctxEntradas = document.getElementById('entradasChart').getContext('2d');
+                new Chart(ctxEntradas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Membros Mensais', 'Empresas', 'Avulsos'],
+                        datasets: [{
+                            data: [membrosMensais, empresas, avulsos],
+                            backgroundColor: ['#10b981', '#3b82f6', '#f59e0b'],
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+
+                // Gráfico de Distribuição
+                const ctxDistribuicao = document.getElementById('distribuicaoChart').getContext('2d');
+                new Chart(ctxDistribuicao, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Entradas', 'Saídas'],
+                        datasets: [{
+                            data: [totalEntradas, totalSaidas],
+                            backgroundColor: ['#10b981', '#ef4444'],
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+
+                // Gráfico de Evolução Anual
+                await loadEvolucaoAnual();
+
+                // Gráfico de Saídas por Categoria
+                await loadSaidasPorCategoria();
+
+                // Gráfico de Entradas por Mês
+                await loadEntradasPorMes();
+
+                // Buscar Serasa do Grupo
+                await loadSerasa();
+
+                // Mostrar conteúdo
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+
+            } catch (error) {
+                document.getElementById('loading').innerHTML = `
+                    <div class="error">
+                        ❌ Erro ao carregar dados. Verifique se a planilha está pública e o ID está correto.
+                    </div>
+                `;
+            }
+        }
+
+        async function loadEvolucaoAnual() {
+            try {
+                // Buscar dados da aba Anos
+                const anosData = await fetchSheetData('Anos');
+                
+                const anos = [];
+                const entradas = [];
+                const saidas = [];
+                const saldos = [];
+                
+                anosData.rows.forEach(row => {
+                    const ano = row.c[0]?.v;
+                    const entrada = parseFloat(row.c[1]?.v) || 0;
+                    const saida = parseFloat(row.c[2]?.v) || 0;
+                    const saldo = parseFloat(row.c[3]?.v) || 0;
+                    
+                    if (ano) {
+                        anos.push(ano);
+                        entradas.push(entrada);
+                        saidas.push(saida);
+                        saldos.push(saldo);
+                    }
+                });
+                
+                // Encontrar melhor ano (maior saldo)
+                if (saldos.length > 0) {
+                    const maxSaldo = Math.max(...saldos);
+                    const indexMelhor = saldos.indexOf(maxSaldo);
+                    document.getElementById('melhorAno').textContent = anos[indexMelhor];
+                    document.getElementById('melhorAnoValor').textContent = `Saldo: ${formatCurrency(maxSaldo)}`;
+                }
+                
+                // Criar gráfico de barras comparativo
+                const ctxAnos = document.getElementById('anosChart').getContext('2d');
+                new Chart(ctxAnos, {
+                    type: 'bar',
+                    data: {
+                        labels: anos,
+                        datasets: [
+                            {
+                                label: 'Entradas',
+                                data: entradas,
+                                backgroundColor: '#10b981',
+                                borderWidth: 2,
+                                borderColor: '#fff'
+                            },
+                            {
+                                label: 'Saídas',
+                                data: saidas,
+                                backgroundColor: '#ef4444',
+                                borderWidth: 2,
+                                borderColor: '#fff'
+                            },
+                            {
+                                label: 'Saldo',
+                                data: saldos,
+                                backgroundColor: '#3b82f6',
+                                borderWidth: 2,
+                                borderColor: '#fff'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return 'R$ ' + value.toLocaleString('pt-BR');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Erro ao carregar evolução anual:', error);
+            }
+        }
+
+        async function loadSaidasPorCategoria() {
+            try {
+                // Buscar todas as respostas
+                const respostasData = await fetchSheetData('Respostas');
+                
+                // Agrupar saídas por categoria
+                const categorias = {};
+                
+                respostasData.rows.forEach(row => {
+                    const tipo = row.c[1]?.v; // Coluna B - Tipo (Entrada/Saída)
+                    const valor = parseFloat(row.c[3]?.v) || 0; // Coluna D - Valor
+                    const categoria = row.c[5]?.v || 'Outros'; // Coluna F - Categoria
+                    
+                    // Apenas saídas
+                    if (tipo === 'Saída' && valor > 0) {
+                        if (!categorias[categoria]) {
+                            categorias[categoria] = 0;
+                        }
+                        categorias[categoria] += valor;
+                    }
+                });
+                
+                // Preparar dados para o gráfico
+                const labels = Object.keys(categorias);
+                const valores = Object.values(categorias);
+                
+                // Cores variadas para as categorias
+                const cores = [
+                    '#ef4444', '#f59e0b', '#10b981', '#3b82f6', 
+                    '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'
+                ];
+                
+                // Criar gráfico
+                const ctxSaidas = document.getElementById('saidasChart').getContext('2d');
+                new Chart(ctxSaidas, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Valor Gasto (R$)',
+                            data: valores,
+                            backgroundColor: cores.slice(0, labels.length),
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return 'R$ ' + value.toFixed(2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Erro ao carregar saídas por categoria:', error);
+            }
+        }
+
+        async function loadEntradasPorMes() {
+            try {
+                // Buscar todas as respostas
+                const respostasData = await fetchSheetData('Respostas');
+                
+                // Agrupar entradas por mês
+                const meses = {};
+                
+                respostasData.rows.forEach(row => {
+                    const tipo = row.c[1]?.v; // Coluna B - Tipo
+                    const data = row.c[2]?.v; // Coluna C - Data
+                    const valor = parseFloat(row.c[3]?.v) || 0; // Coluna D - Valor
+                    
+                    // Apenas entradas
+                    if (tipo === 'Entrada' && valor > 0 && data) {
+                        // Extrair mês/ano da data
+                        let mesAno;
+                        if (data instanceof Date) {
+                            mesAno = `${(data.getMonth() + 1).toString().padStart(2, '0')}/${data.getFullYear()}`;
+                        } else if (typeof data === 'string') {
+                            // Formato pode variar, tentar extrair
+                            const dataObj = new Date(data);
+                            if (!isNaN(dataObj)) {
+                                mesAno = `${(dataObj.getMonth() + 1).toString().padStart(2, '0')}/${dataObj.getFullYear()}`;
+                            }
+                        } else {
+                            // Data do Google Sheets vem como número serial
+                            const dataObj = new Date((data - 25569) * 86400 * 1000);
+                            mesAno = `${(dataObj.getMonth() + 1).toString().padStart(2, '0')}/${dataObj.getFullYear()}`;
+                        }
+                        
+                        if (mesAno) {
+                            if (!meses[mesAno]) {
+                                meses[mesAno] = 0;
+                            }
+                            meses[mesAno] += valor;
+                        }
+                    }
+                });
+                
+                // Ordenar meses cronologicamente
+                const mesesOrdenados = Object.keys(meses).sort((a, b) => {
+                    const [mesA, anoA] = a.split('/');
+                    const [mesB, anoB] = b.split('/');
+                    return new Date(anoA, mesA - 1) - new Date(anoB, mesB - 1);
+                });
+                
+                const valores = mesesOrdenados.map(mes => meses[mes]);
+                
+                // Criar gráfico de linha
+                const ctxEntradasMes = document.getElementById('entradasMesChart').getContext('2d');
+                new Chart(ctxEntradasMes, {
+                    type: 'line',
+                    data: {
+                        labels: mesesOrdenados,
+                        datasets: [{
+                            label: 'Entradas (R$)',
+                            data: valores,
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                            borderColor: '#10b981',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 5,
+                            pointHoverRadius: 7,
+                            pointBackgroundColor: '#10b981'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'bottom'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return 'R$ ' + value.toFixed(2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Erro ao carregar entradas por mês:', error);
+            }
+        }
+
+        async function loadSerasa() {
+            try {
+                const serasaData = await fetchSheetData('Serasa do Grupo');
+                const serasaContent = document.getElementById('serasaContent');
+
+                if (!serasaData.rows || serasaData.rows.length === 0) {
+                    serasaContent.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🎉</div>
+                            <h3>Parabéns!</h3>
+                            <p>Todos os membros estão em dia!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let tableHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Valor Mensal</th>
+                                <th>Último Pagamento</th>
+                                <th>Meses em Atraso</th>
+                                <th>Valor Devido</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                serasaData.rows.forEach(row => {
+                    const nome = row.c[0]?.v || '-';
+                    const valorMensal = formatCurrency(row.c[1]?.v || 0);
+                    const ultimoPagamento = row.c[2]?.v || 'Nunca pagou';
+                    const mesesAtraso = row.c[3]?.v || 'N/A';
+                    const valorDevido = formatCurrency(row.c[4]?.v || 0);
+
+                    tableHTML += `
+                        <tr>
+                            <td><strong>${nome}</strong></td>
+                            <td>${valorMensal}</td>
+                            <td>${ultimoPagamento}</td>
+                            <td><span class="badge badge-danger">${mesesAtraso} meses</span></td>
+                            <td><strong>${valorDevido}</strong></td>
+                        </tr>
+                    `;
+                });
+
+                tableHTML += `
+                        </tbody>
+                    </table>
+                `;
+
+                serasaContent.innerHTML = tableHTML;
+
+            } catch (error) {
+                console.error('Erro ao carregar Serasa:', error);
+                document.getElementById('serasaContent').innerHTML = `
+                    <div class="error">Erro ao carregar lista de inadimplentes</div>
+                `;
+            }
+        }
+
+        // Carregar dashboard ao iniciar
+        loadDashboard();
+
+        // Atualizar a cada 30 segundos
+        setInterval(loadDashboard, 30000);
+    </script>
+</body>
+</html>
